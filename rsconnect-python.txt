@@ -1,0 +1,2 @@
+# This file can be used if deploying with Python-based deployment tools
+# Most R Shiny deployments won't need this, but it's good to have
