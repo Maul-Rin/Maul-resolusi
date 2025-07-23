@@ -130,21 +130,35 @@ setup_spatial_data <- function() {
     if (file.exists(indonesia_geojson_url)) {
       indonesia_sf <- st_read(indonesia_geojson_url, quiet = TRUE)
       cat("GeoJSON berhasil dimuat dari:", indonesia_geojson_url, "\n")
-      return(indonesia_sf)
+      
+      # Extract coordinates if available
+      if (!is.null(indonesia_sf) && nrow(indonesia_sf) > 0) {
+        coordinates <- st_coordinates(st_centroid(indonesia_sf))
+        return(list(
+          sf_data = indonesia_sf,
+          coordinates = coordinates
+        ))
+      } else {
+        return(list(sf_data = NULL, coordinates = NULL))
+      }
     } else {
       cat("File GeoJSON tidak ditemukan:", indonesia_geojson_url, "\n")
       cat("Menggunakan data point sebagai fallback\n")
-      return(NULL)
+      return(list(sf_data = NULL, coordinates = NULL))
     }
   }, error = function(e) {
     cat("Error loading spatial data:", e$message, "\n")
-    return(NULL)
+    return(list(sf_data = NULL, coordinates = NULL))
   })
 }
 
 # 6. Generate data dan setup spatial
 sovi_data <- generate_sovi_data(50)
-indonesia_sf_global <- setup_spatial_data()
+
+# Setup spatial data dengan struktur yang benar
+spatial_setup <- setup_spatial_data()
+map_coordinates <- spatial_setup$coordinates
+indonesia_sf_global <- spatial_setup$sf_data
 
 # 7. FUNGSI KALKULASI SOVI
 calculate_sovi <- function(data) {
