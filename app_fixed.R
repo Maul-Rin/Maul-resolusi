@@ -1,9 +1,8 @@
 # Dashboard Analisis Kerentanan Sosial Indonesia
-# Versi Lengkap Siap Deploy - Copy dan Paste Langsung
-# File: dashboard_kerentanan_final.R
+# Versi Bersih Tanpa Error - Copy Paste Langsung
+# File: app_fixed.R
 
-# ===== LOAD LIBRARIES =====
-# Install packages jika belum ada
+# Load Libraries
 required_packages <- c("shiny", "shinydashboard", "DT", "ggplot2", "dplyr", 
                       "leaflet", "plotly", "corrplot", "RColorBrewer")
 
@@ -12,7 +11,6 @@ if (length(missing_packages) > 0) {
   install.packages(missing_packages, dependencies = TRUE)
 }
 
-# Load libraries dengan error handling
 for (pkg in required_packages) {
   tryCatch({
     library(pkg, character.only = TRUE)
@@ -21,12 +19,10 @@ for (pkg in required_packages) {
   })
 }
 
-# ===== GENERATE DATA =====
-# Membuat data Indonesia yang realistis
+# Generate Data
 set.seed(123)
 n_districts <- 100
 
-# Nama-nama wilayah Indonesia
 wilayah_indonesia <- c(
   "Jakarta Pusat", "Jakarta Utara", "Jakarta Barat", "Jakarta Selatan", "Jakarta Timur",
   "Bandung", "Bekasi", "Depok", "Tangerang", "Bogor", "Cimahi", "Sukabumi", "Cirebon",
@@ -39,7 +35,6 @@ wilayah_indonesia <- c(
   paste("Kabupaten", 1:50)
 )
 
-# Generate data SOVI
 sovi_data <- data.frame(
   Kode_Distrik = paste0("ID", sprintf("%03d", 1:n_districts)),
   Wilayah = sample(wilayah_indonesia, n_districts, replace = TRUE),
@@ -61,7 +56,6 @@ sovi_data <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# Pastikan nilai tidak negatif
 numeric_cols <- c("Anakanak", "Perempuan", "Lansia", "Kepala_RT_Perempuan", 
                  "Ukuran_Keluarga", "Tanpa_Listrik", "Pendidikan_Rendah", 
                  "Kemiskinan", "Buta_Huruf", "Tidak_Pelatihan", "Populasi", "Luas")
@@ -70,22 +64,18 @@ for (col in numeric_cols) {
   sovi_data[[col]] <- pmax(sovi_data[[col]], 0)
 }
 
-# Hitung SOVI Score
 sovi_vars <- c("Anakanak", "Lansia", "Kepala_RT_Perempuan", "Ukuran_Keluarga", 
                "Tanpa_Listrik", "Pendidikan_Rendah", "Kemiskinan", "Buta_Huruf", "Tidak_Pelatihan")
 
-# Normalisasi dan hitung skor
 sovi_matrix <- as.matrix(sovi_data[sovi_vars])
 sovi_normalized <- scale(sovi_matrix)
 sovi_data$SOVI_Score <- round(rowMeans(sovi_normalized, na.rm = TRUE), 3)
 
-# Kategorisasi SOVI
 sovi_data$SOVI_Category <- cut(sovi_data$SOVI_Score, 
                               breaks = quantile(sovi_data$SOVI_Score, c(0, 0.25, 0.5, 0.75, 1)),
                               labels = c("Rendah", "Sedang", "Tinggi", "Sangat Tinggi"),
                               include.lowest = TRUE)
 
-# Metadata
 metadata_sovi <- data.frame(
   Variabel = c("Kode_Distrik", "Wilayah", "Anakanak", "Perempuan", "Lansia", 
                "Kepala_RT_Perempuan", "Ukuran_Keluarga", "Tanpa_Listrik", 
@@ -108,14 +98,14 @@ metadata_sovi <- data.frame(
     "Koordinat lintang geografis",
     "Koordinat bujur geografis",
     "Jumlah total populasi",
-    "Luas wilayah dalam km²",
+    "Luas wilayah dalam km persegi",
     "Skor Indeks Kerentanan Sosial"
   ),
   Tipe = c("ID", "Kategorik", rep("Numerik", 16)),
   stringsAsFactors = FALSE
 )
 
-# ===== UI =====
+# UI
 ui <- dashboardPage(
   dashboardHeader(title = "Dashboard Kerentanan Sosial Indonesia"),
   
@@ -143,7 +133,6 @@ ui <- dashboardPage(
     ),
     
     tabItems(
-      # Tab Data Explorer
       tabItem(tabName = "data",
         fluidRow(
           box(
@@ -181,7 +170,6 @@ ui <- dashboardPage(
         )
       ),
       
-      # Tab Analisis SOVI
       tabItem(tabName = "sovi",
         fluidRow(
           box(
@@ -217,7 +205,6 @@ ui <- dashboardPage(
         )
       ),
       
-      # Tab Peta
       tabItem(tabName = "map",
         fluidRow(
           box(
@@ -240,7 +227,6 @@ ui <- dashboardPage(
         )
       ),
       
-      # Tab Korelasi
       tabItem(tabName = "correlation",
         fluidRow(
           box(
@@ -260,7 +246,6 @@ ui <- dashboardPage(
         )
       ),
       
-      # Tab Metadata
       tabItem(tabName = "metadata",
         fluidRow(
           box(
@@ -303,10 +288,9 @@ ui <- dashboardPage(
   )
 )
 
-# ===== SERVER =====
+# Server
 server <- function(input, output, session) {
   
-  # Reactive data filtering
   filtered_data <- reactive({
     data <- sovi_data
     
@@ -324,7 +308,6 @@ server <- function(input, output, session) {
     return(data)
   })
   
-  # Data Explorer Tab
   output$data_table <- DT::renderDataTable({
     DT::datatable(filtered_data(), 
                  options = list(scrollX = TRUE, pageLength = 15),
@@ -356,7 +339,6 @@ server <- function(input, output, session) {
       theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"))
   })
   
-  # SOVI Analysis Tab
   output$sovi_plot <- renderPlotly({
     data <- filtered_data()
     
@@ -428,17 +410,18 @@ server <- function(input, output, session) {
       theme_minimal() +
       theme(legend.position = "none")
     
-    gridExtra::grid.arrange(p1, p2, ncol = 2)
+    if (requireNamespace("gridExtra", quietly = TRUE)) {
+      gridExtra::grid.arrange(p1, p2, ncol = 2)
+    } else {
+      print(p1)
+    }
   })
   
-  # Map Tab
   output$interactive_map <- renderLeaflet({
     data <- filtered_data()
     
-    # Color palette
     pal <- colorNumeric(palette = "RdYlBu", domain = data[[input$map_var]], reverse = TRUE)
     
-    # Size scaling
     size_var <- data[[input$map_size]]
     sizes <- sqrt(size_var / max(size_var, na.rm = TRUE)) * 20 + 5
     
@@ -467,7 +450,6 @@ server <- function(input, output, session) {
       )
   })
   
-  # Correlation Tab
   output$correlation_plot <- renderPlot({
     cor_data <- sovi_data[c(sovi_vars, "SOVI_Score")]
     cor_matrix <- cor(cor_data, use = "complete.obs")
@@ -495,14 +477,13 @@ server <- function(input, output, session) {
   })
   
   output$scatter_matrix <- renderPlot({
-    pairs_data <- sovi_data[c("SOVI_Score", sovi_vars[1:4])]  # Limit to 5 variables for readability
+    pairs_data <- sovi_data[c("SOVI_Score", sovi_vars[1:4])]
     pairs(pairs_data, 
           main = "Scatter Plot Matrix (Selected Variables)",
           pch = 19, 
-          col = rgb(70, 130, 180, alpha = 150, maxColorValue = 255))
+          col = "steelblue")
   })
   
-  # Metadata Tab
   output$metadata_table <- DT::renderDataTable({
     DT::datatable(metadata_sovi, 
                  options = list(pageLength = 20, scrollX = TRUE),
@@ -536,5 +517,5 @@ server <- function(input, output, session) {
   })
 }
 
-# ===== RUN APP =====
+# Run App
 shinyApp(ui = ui, server = server)
